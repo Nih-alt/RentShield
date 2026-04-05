@@ -72,6 +72,7 @@ class InspectionListNotifier extends StateNotifier<List<Inspection>> {
             templateId: item.id,
             name: item.name,
             category: item.category,
+            condition: ItemCondition.ok,
           );
         }).toList(),
       );
@@ -117,6 +118,7 @@ class InspectionListNotifier extends StateNotifier<List<Inspection>> {
             templateId: miItem.templateId,
             name: miItem.name,
             category: miItem.category,
+            condition: ItemCondition.ok,
           );
         }).toList(),
       );

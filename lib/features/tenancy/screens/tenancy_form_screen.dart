@@ -127,7 +127,16 @@ class _TenancyFormScreenState extends ConsumerState<TenancyFormScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tenancy details saved')),
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle_rounded,
+                    color: Colors.white, size: 18),
+                SizedBox(width: 8),
+                Text('Tenancy details saved'),
+              ],
+            ),
+          ),
         );
         context.pop();
       }

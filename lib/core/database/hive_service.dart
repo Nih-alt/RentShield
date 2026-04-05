@@ -28,4 +28,8 @@ class HiveService {
 
   static Future<void> setOnboardingCompleted() =>
       settings.put('onboardingCompleted', true);
+
+  /// Reset onboarding flag so user can replay the walkthrough.
+  static Future<void> resetOnboarding() =>
+      settings.put('onboardingCompleted', false);
 }

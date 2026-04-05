@@ -113,9 +113,17 @@ class _CreatePropertyScreenState extends ConsumerState<CreatePropertyScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(_isEditing
-                  ? 'Property updated successfully'
-                  : 'Property added successfully')),
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded,
+                    color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Text(_isEditing
+                    ? 'Property updated'
+                    : 'Property added'),
+              ],
+            ),
+          ),
         );
         context.pop();
       }

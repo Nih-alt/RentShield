@@ -355,92 +355,124 @@ ReportData (computed, not persisted - intermediate for PDF)
 
 ---
 
-## Phase 5 - Completed
-**Goal:** MVP/Beta Launch Readiness
+## Phase 5 - Completed (Revised)
+**Goal:** MVP/Beta Launch Readiness — Bug Fixes + UX Polish + Feature Completion
 
-### What Was Built
+### Part A — Bug Fixes Applied
 
-1. **Onboarding Flow (`onboarding_screen.dart`):**
-   - 3-screen PageView onboarding: Welcome, Document Everything, Generate Reports
-   - First-launch detection via Hive `settings` box (`onboardingCompleted` flag)
-   - Premium visuals with brand icon circles, animated page dots, Skip/Next/Get Started CTAs
-   - Router checks `HiveService.hasCompletedOnboarding` for initial route
-   - Shown only once per install
+#### Share Report Flow (Verified & Hardened)
+- **Root cause**: `GeneratedPluginRegistrant.java` was missing `SharePlusPlugin` registration due to Windows Developer Mode not enabling symlinks. The manual registration fix from the previous phase is correct and stable.
+- **Dart-side improvements**:
+  - Added `File.exists()` check before every share attempt (report generation screen + report history)
+  - Added loading state (`_isSharing`) with spinner feedback on share buttons
+  - Cleaner error messages (strips `Exception:` prefix)
+  - Graceful handling when PDF file is missing on disk
+- **Both share paths verified**: report generation success screen + report history tiles
+- **API usage**: `Share.shareXFiles([XFile(path)])` — correct for share_plus 10.x
+- **Environment note**: Windows Developer Mode is still required for proper `flutter pub get` symlink support. The manual `GeneratedPluginRegistrant.java` fix is stable without it.
 
-2. **Settings Screen Upgrade:**
-   - **Data & Backup section**: Export Backup (JSON), Storage stats dialog
-   - **General section**: How It Works (4-step guide), About dialog, Privacy dialog
-   - Version display updated to "1.0.0 (Beta)"
-   - All tiles use consistent design language
+#### Report Success Screen Action Row (Redesigned)
+- Buttons remain stacked vertically (full-width, never cramped)
+- **Share Report**: Primary ElevatedButton, 52px height, shows loading spinner while sharing
+- **Regenerate Report**: Secondary OutlinedButton, 48px height
+- Added success icon entry animation (scale + fade) for premium feel
+- Explicit `SizedBox` height constraints for consistent sizing
+- No text wrapping or truncation on any screen width
 
-3. **Edit Property Flow:**
-   - `CreatePropertyScreen` now accepts optional `editPropertyId` parameter
-   - Pre-fills all fields (name, address, type, notes) from existing property
-   - Uses existing `PropertyListNotifier.update()` for saving edits
-   - Edit button added to property details popup menu
-   - Route: `/properties/:id/edit`
+### Part B — Phase 5 Feature Implementation
 
-4. **Data Backup & Export (`backup_service.dart`):**
-   - Exports all Hive boxes (properties, tenancies, inspections, reports) as structured JSON
-   - Includes metadata: app name, version, export timestamp
-   - Saves to app documents directory with timestamped filename
-   - Shares via platform share sheet (share_plus)
-   - `getStorageStats()` utility for settings screen
+1. **Onboarding Flow (Polished):**
+   - 3-screen PageView: Welcome, Document Everything, Generate Reports
+   - Double-ring icon decoration for premium visual quality
+   - Multi-line titles with better line breaks
+   - Accent color changes per page (primary, success, accent) on CTA button and dot indicator
+   - Skip button fades out on last page (AnimatedOpacity)
+   - Dot indicators animate with page accent color
+   - Replay from settings restores onboarding flag and navigates to `/onboarding`
 
-5. **Safe Deletion Improvements:**
-   - Delete property confirmation now shows impact: tenancy, inspection count, reports
-   - Cascade delete now includes reports (file + record) in addition to inspections and tenancy
-   - All associated data cleaned up on property deletion
+2. **Settings Screen (Rebuilt):**
+   - **Data & Backup section**: Export Backup with loading spinner in snackbar, Storage dialog with icons per row
+   - **Help & Info section**: Replay Walkthrough (resets onboarding flag), How It Works (modal bottom sheet with numbered steps)
+   - **About section**: About Rent Shield (privacy badge), Privacy (icon checklist)
+   - Section labels with uppercase tracking
+   - Settings tiles with icon containers (tinted primary background)
+   - Footer with version watermark
+   - All dialogs and sheets use consistent premium styling
 
-6. **Sync-ready Architecture Foundations:**
-   - `SyncStatus` enum added to `property_model.dart` (pending/synced/modified)
-   - `syncStatus` and `lastSyncedAt` fields on `Property` model with JSON serialization
-   - `syncStatus` string field on `Inspection` model (pending/modified)
-   - `copyWith` sets syncStatus to 'modified' on updates
-   - All backward-compatible: defaults for existing data
+3. **Edit/Manage Flows:**
+   - Edit property via `/properties/:id/edit` — reuses CreatePropertyScreen with pre-fill
+   - Edit tenancy via existing tenancy form screen
+   - Delete property: improved confirmation dialog with warning icon, itemized deletion list (tenancy, N inspections, N reports), "Delete Everything" CTA, cascade delete with snackbar confirmation
+   - Delete inspection: improved dialog with warning icon, mentions photos/notes
+   - Delete report: shows file size and warns that PDF will be deleted from device
 
-7. **Dead Code Cleanup:**
-   - Removed `media_item.dart` (unused Phase 1 placeholder — photos stored inline in inspection JSON)
-   - No other dead imports or unused code found
+4. **Backup & Export (Improved):**
+   - JSON export now includes `dataStats` and `note` fields explaining what's included
+   - Note explicitly states photos and PDFs are NOT included in backup
+   - File existence check before sharing backup
+   - `countOrphanedReports()` utility added for future cleanup features
+   - Structured code cleanly for future restore/import support
 
-8. **Code Quality:**
-   - `dart analyze`: 0 issues
-   - All routes compile and navigate correctly
-   - No broken navigation or stub handlers
-   - Consistent Riverpod patterns across all features
+5. **Local File Hygiene:**
+   - Report deletion already deletes PDF from disk (ReportListNotifier.delete)
+   - Delete confirmation now communicates file size and that PDF will be removed
+   - Missing file handling: report tiles show "File no longer available" gracefully
+   - Share buttons hidden when file doesn't exist
+   - File existence verified before every share attempt
 
-### Architecture Decisions (Phase 5)
-- Onboarding uses Hive `settings` box (dynamic-typed) separate from domain data boxes
-- Backup exports raw Hive JSON maps (not domain objects) for maximum fidelity
-- Sync metadata added as passive fields — no sync logic, just structure for future backend
-- Edit property reuses CreatePropertyScreen with optional editPropertyId (no new screen)
-- Cascade delete order: reports → tenancy → inspections → property (least dependent first)
+6. **Sync-ready Foundations:**
+   - `SyncStatus` enum on Property (pending/synced/modified) — from previous phase
+   - `syncStatus` string on Inspection (pending/modified) — from previous phase
+   - `HiveService.resetOnboarding()` added for settings replay
+   - All data fully offline-capable, no backend dependencies
 
-### Files Added/Changed in Phase 5
-**New files:**
-- `lib/features/onboarding/screens/onboarding_screen.dart`
-- `lib/core/services/backup_service.dart`
+7. **UX Polish Pass:**
+   - Empty states: double-ring icon containers, better copy with context
+   - Home screen: dashboard stats card with completion/draft/report counts
+   - Property cards: "Start inspection" hint chip for empty properties
+   - Not-found screens: icon + descriptive message instead of plain text
+   - Delete confirmations: warning icons, itemized impact, "cannot be undone" warnings
+   - Save feedback: snackbar with checkmark icon for property/tenancy saves
+   - Bottom sheets: handle bars for consistent grabability
+   - Consistent button sizing: explicit `SizedBox` wrappers on all CTAs
 
+8. **Micro-interactions:**
+   - Report success: scale + fade animation on checkmark icon
+   - Onboarding: animated dot indicator with accent color transitions
+   - Share button: loading spinner replaces icon during share
+   - Backup export: loading spinner in snackbar during preparation
+   - Skip button: fade transition on last onboarding page
+
+9. **Launch-readiness Pass:**
+   - App name "Rent Shield" consistent everywhere
+   - Version "1.0.0 (Beta)" consistent in settings + about
+   - All user-facing labels reviewed and cleaned
+   - Empty state copy improved for clarity
+   - Error messages strip Exception prefix for readability
+   - Footer tagline: "Made with care for tenants everywhere."
+
+10. **Code Quality:**
+    - `dart analyze`: 0 issues
+    - All routes compile and navigate correctly
+    - No broken navigation, fake stubs, or dead code
+    - Consistent Riverpod patterns across all features
+    - No unnecessary backend integration
+    - Architecture unchanged — feature-first with Riverpod + go_router + Hive
+
+### Files Changed in Phase 5 (Revised)
 **Modified files:**
-- `lib/core/database/hive_service.dart` (settings box, onboarding helpers)
-- `lib/core/router/app_router.dart` (onboarding route, edit property route, initial route logic)
-- `lib/features/property/screens/create_property_screen.dart` (edit mode support)
-- `lib/features/property/screens/property_details_screen.dart` (edit menu, cascade delete with reports)
-- `lib/features/property/data/property_model.dart` (SyncStatus, sync fields)
-- `lib/features/inspection/data/inspection_model.dart` (syncStatus field)
-- `lib/features/settings/screens/settings_screen.dart` (complete rebuild with backup, storage, about, how-it-works)
-
-**Deleted files:**
-- `lib/features/inspection/data/media_item.dart` (unused placeholder)
-
-### Hive Boxes (Updated)
-```
-properties  - Box<Map>  - Property records
-tenancies   - Box<Map>  - TenancyRecord records
-inspections - Box<Map>  - Inspection records
-reports     - Box<Map>  - ReportRecord records
-settings    - Box       - App preferences (onboardingCompleted, etc.)
-```
+- `lib/core/database/hive_service.dart` (added `resetOnboarding()`)
+- `lib/core/services/backup_service.dart` (improved export metadata, file check, orphan counter)
+- `lib/features/onboarding/screens/onboarding_screen.dart` (visual polish, accent colors, double-ring icon)
+- `lib/features/settings/screens/settings_screen.dart` (rebuilt: sections, replay onboarding, bottom sheet, privacy items)
+- `lib/features/report/screens/report_generation_screen.dart` (share loading state, file check, entry animation)
+- `lib/features/report/widgets/report_history_section.dart` (share loading, delete dialog improvement, file check)
+- `lib/features/home/screens/home_screen.dart` (dashboard stats, report count, empty property hint)
+- `lib/features/property/screens/property_details_screen.dart` (delete dialog UX, not-found state, bottom sheet polish)
+- `lib/features/inspection/screens/inspection_overview_screen.dart` (delete dialog UX, not-found state)
+- `lib/shared/widgets/empty_state.dart` (double-ring icon, cleaned import)
+- `lib/features/property/screens/create_property_screen.dart` (save snackbar with icon)
+- `lib/features/tenancy/screens/tenancy_form_screen.dart` (save snackbar with icon)
 
 ---
 
@@ -452,54 +484,112 @@ settings    - Box       - App preferences (onboardingCompleted, etc.)
 - Monetization / subscription
 - Report customization (select which rooms/photos to include)
 - Report preview before generation
-- Data restore from backup JSON
+- Data restore from backup JSON (import)
 - Multi-language support
 - Dark mode
+- Photo cleanup on inspection/property deletion
+- Orphaned report record cleanup UI
+- OCR / AI damage detection (post-MVP)
+
+## Phase 6 — Inspection Speed UX + Beta Hardening QA Pass
+
+### Task A: Inspection Speed UX
+**Goal:** Speed up inspection workflow with default-to-OK behavior and bulk actions.
+
+**Changes:**
+1. **Default items to OK on creation** (`inspection_providers.dart`)
+   - `createMoveIn()`: items now created with `condition: ItemCondition.ok`
+   - `createMoveOut()`: items now created with `condition: ItemCondition.ok`
+   - New inspections show 100% progress immediately; users only change items that have issues
+
+2. **Quick Actions bulk selection bar** (`room_inspection_screen.dart`)
+   - Added `_bulkSetCondition()` method: sets all items to chosen condition + calls `_save()`
+   - Quick Actions row with 4 tappable chips: All OK, All Minor, All Major, All Missing
+   - Each chip styled with condition color (success/warning/error/purple)
+   - Snackbar feedback on bulk action (e.g. "All items marked as Good")
+   - Hidden for completed (read-only) inspections
+   - New `_BulkActionChip` private widget
+
+### Task B: Beta Hardening QA Pass
+**Scope:** End-to-end audit of all 15 app flows.
+
+**Bugs Found & Fixed:**
+1. **inspection_summary_screen.dart:46** — Trailing comma in `build(context, )` method signature. Fixed.
+2. **inspection_summary_screen.dart:219** — Hardcoded "move-in record" text displayed for both move-in and move-out inspections. Fixed to use `inspection.type.label.toLowerCase()`.
+3. **inspection_summary_screen.dart:49** — Plain text "Inspection not found" state, inconsistent with polished pattern in other screens. Upgraded to icon + title + subtitle pattern.
+4. **comparison_screen.dart:24** — Plain text "Comparison data not available" state. Upgraded to polished not-found pattern with icon + descriptive subtitle.
+5. **property_details_screen.dart (InspectionCard)** — `completedAt!` force-unwrap could crash if completed inspection has null `completedAt` (data corruption edge case). Added null guard.
+
+**Flows Audited (all passing):**
+- Property CRUD (create, view, edit, delete cascade)
+- Tenancy CRUD (add, edit, prefill)
+- Move-in inspection (create → default OK → room inspect → summary → complete)
+- Move-out inspection (create linked → default OK → complete)
+- Room inspection (condition selection, photos, notes, auto-save, bulk actions)
+- Inspection overview (progress card, room list, delete, complete button guard)
+- Inspection summary (stats, room breakdown, issues list, complete action)
+- Before/after comparison (stats, flagged issues, room breakdown, report CTA)
+- PDF generation (loading → success → share → error states)
+- Report history (share, delete with file info, file-not-found handling)
+- Share flow (file existence check, loading spinner, error handling)
+- Onboarding (page nav, skip, complete, replay from settings)
+- Settings (export backup, storage info, how it works, about, privacy)
+- Home dashboard (stats, property cards, empty state, FAB)
+- Navigation (all routes, back navigation, pop behavior, PopScope auto-save)
+
+**No issues found in:**
+- Router configuration (all paths, param extraction)
+- Riverpod provider wiring
+- Theme/design system consistency
+- Button sizing/wrapping
+- Empty states
+- Loading states
+- Error handling
+- Share flow hardening (from Phase 5)
+
+---
+
+## Known Issues
+- Windows Developer Mode not enabled: `flutter pub get` exits code 1 with symlink warning. `GeneratedPluginRegistrant.java` manually maintained. Enable Developer Mode to resolve.
+- Photo files not deleted when removing individual photos from inspections (photo paths become orphaned on disk)
+- Backup does not include actual photo/PDF files — only metadata and file paths
+
+## Post-MVP Recommendations
+1. **Enable Windows Developer Mode** — resolves plugin registration and symlink issues permanently
+2. **Data restore from backup JSON** — import flow to complement export
+3. **Photo lifecycle management** — delete photo files from disk when removed from inspections
+4. **Cloud sync** — Firebase/Supabase backend for cross-device data
+5. **Dark mode** — already structured for theming via AppColors/AppTheme
+6. **Report customization** — let users select rooms/photos before PDF generation
+7. **Multi-language** — app copy is English-only; structure supports i18n
+
+## Launch-Readiness Notes
+- App compiles cleanly (`dart analyze`: 0 issues, verified Phase 6)
+- All navigation routes functional
+- Onboarding → Home → Property → Tenancy → Inspection → Report flow complete
+- Share flow operational (requires physical device or emulator with share sheet support)
+- Data backup/export functional
+- Settings complete with help, about, privacy, replay walkthrough
+- No placeholder stubs or unfinished screens
+- Premium visual quality maintained across all screens
+- All 15 app flows audited end-to-end (Phase 6 QA pass)
+- Inspection UX optimized: default-to-OK + bulk actions
+- All not-found/error states use consistent polished pattern
+- Beta-ready for internal testing
 
 ## Bug Fixes
 
-### share_plus MissingPluginException (Fixed)
-**Symptom:** `MissingPluginException(No implementation found for method shareFiles on channel dev.fluttercommunity.plus/share)` at runtime when sharing PDFs/backups.
+### share_plus MissingPluginException (Fixed — Phase 4/5)
+**Root Cause:** Windows Developer Mode disabled → `flutter pub get` can't create symlinks → `GeneratedPluginRegistrant.java` not auto-regenerated → `SharePlusPlugin` missing from registrant.
 
-**Root Cause (Deep Diagnosis):**
-1. Windows Developer Mode is NOT enabled on this machine
-2. `flutter pub get` exits with code 1: "Building with plugins requires symlink support"
-3. This prevents the Flutter tool from auto-regenerating `GeneratedPluginRegistrant.java`
-4. The file was stale — only registered 3 plugins (lifecycle, image_picker, path_provider), missing `SharePlusPlugin`
-5. Even though `.flutter-plugins-dependencies` IS generated correctly (listing share_plus with `native_build: true`), the Java registrant file is NOT regenerated due to the early exit
+**Fix:** Manual registration of `SharePlusPlugin` in `GeneratedPluginRegistrant.java`. Stable because Flutter can't overwrite the file without symlink support.
 
-**Key findings from investigation:**
-- `.flutter-plugins` file: NOT generated (newer Flutter doesn't use it — uses `.flutter-plugins-dependencies` instead)
-- Gradle `native_plugin_loader.gradle.kts`: reads `.flutter-plugins-dependencies` to include native plugin builds ✓
-- `share_plus-10.1.4/pubspec.yaml`: declares `pluginClass: SharePlusPlugin` for Android ✓
-- Gradle `debugRuntimeClasspath`: includes `:share_plus` project dependency ✓
-- share_plus Dart side: `MethodChannelShare` invokes `shareFiles` on channel `dev.fluttercommunity.plus/share` ✓
-- share_plus native side: `SharePlusPlugin.kt` registers on same channel and handles `shareFiles` ✓
-- Everything is correct EXCEPT the registrant wasn't regenerated
+**Phase 5 Hardening:** Added file existence checks, loading states, graceful error handling to all share paths.
 
-**Fix Applied:**
-- Added `dev.fluttercommunity.plus.share.SharePlusPlugin` registration to `GeneratedPluginRegistrant.java`
-- This manual edit is STABLE: `flutter pub get` cannot overwrite it because the symlink error causes early exit before file regeneration. `flutter clean` doesn't touch the android source tree.
-- Verified with `flutter clean && flutter pub get && flutter build apk --debug` — build succeeds, APK includes share_plus native code
+**Environment Requirement:** Enable Windows Developer Mode for future plugin additions.
 
-**Files Changed:**
-- `android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java` (added share_plus plugin registration)
-
-**IMPORTANT — Follow-up Required:** Enable Windows Developer Mode (`Settings → System → For Developers → Developer Mode → On`) to fix the underlying issue. Without it:
-- `flutter pub get` always exits code 1 (plugins warning)
-- New native plugins (e.g., if you add `url_launcher` or `camera`) will require manual registrant edits
-- The Flutter team requires symlinks for proper plugin integration on Windows
-
-### Regenerate Button UI Polish (Fixed)
-**Issue:** The "Regenerate" and "Share Report" buttons were in a side-by-side Row with unequal flex (1:2), causing the Regenerate text to wrap/truncate on narrow screens. Looked unbalanced and cheap.
-
-**Fix:** Changed the action button layout from horizontal Row to a stacked Column:
-- **Share Report**: Full-width primary ElevatedButton (52px height) — the main CTA
-- **Regenerate Report**: Full-width secondary OutlinedButton (48px height) below — subtler, never truncated
-- Premium, balanced look on all screen widths
-
-**Files Changed:**
-- `lib/features/report/screens/report_generation_screen.dart` (action buttons redesigned, lines 219–256)
+### Report Action Row (Fixed — Phase 4/5)
+**Fix:** Stacked vertical layout with explicit height constraints. Share Report primary (52px) + Regenerate secondary (48px). No wrapping or cramping.
 
 ---
 
@@ -515,3 +605,4 @@ settings    - Box       - App preferences (onboardingCompleted, etc.)
 - path_provider: PDFs saved to app documents dir under rent_shield_reports/
 - Report photo budget: max 3/room, 2/flagged item, 30 total
 - Sync-ready metadata on Property (SyncStatus enum) and Inspection (syncStatus string)
+- No new packages added in Phase 5 revision

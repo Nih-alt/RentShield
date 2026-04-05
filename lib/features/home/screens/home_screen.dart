@@ -13,6 +13,7 @@ import '../../tenancy/providers/tenancy_providers.dart';
 import '../../inspection/providers/inspection_providers.dart';
 import '../../inspection/data/inspection_model.dart';
 import '../../property/data/property_model.dart';
+import '../../report/providers/report_providers.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -21,8 +22,12 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final properties = ref.watch(propertyListProvider);
     final allInspections = ref.watch(inspectionListProvider);
+    final allReports = ref.watch(reportListProvider);
     final draftCount = allInspections
         .where((i) => i.status == InspectionStatus.draft)
+        .length;
+    final completedCount = allInspections
+        .where((i) => i.status == InspectionStatus.completed)
         .length;
 
     return Scaffold(
@@ -73,7 +78,7 @@ class HomeScreen extends ConsumerWidget {
                 icon: Icons.home_work_outlined,
                 title: 'No properties yet',
                 subtitle:
-                    'Add your first rental property to start documenting its condition.',
+                    'Add your first rental property to start documenting its condition and protecting your deposit.',
                 actionLabel: 'Add Property',
                 onAction: () => context.push('/properties/create'),
               ),
@@ -87,6 +92,8 @@ class HomeScreen extends ConsumerWidget {
                   _StatsRow(
                     propertyCount: properties.length,
                     draftInspections: draftCount,
+                    completedInspections: completedCount,
+                    reportCount: allReports.length,
                   ),
                   AppSpacing.vXxl,
 
@@ -131,10 +138,14 @@ class HomeScreen extends ConsumerWidget {
 class _StatsRow extends StatelessWidget {
   final int propertyCount;
   final int draftInspections;
+  final int completedInspections;
+  final int reportCount;
 
   const _StatsRow({
     required this.propertyCount,
     required this.draftInspections,
+    required this.completedInspections,
+    required this.reportCount,
   });
 
   @override
@@ -150,56 +161,104 @@ class _StatsRow extends StatelessWidget {
         borderRadius: AppRadius.borderRadiusXl,
         boxShadow: AppShadows.lg,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Total Properties',
-                  style: AppTypography.labelMedium.copyWith(
-                    color: Colors.white70,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '$propertyCount',
-                  style: AppTypography.displayMedium.copyWith(
-                    color: Colors.white,
-                  ),
-                ),
-                if (draftInspections > 0) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: AppRadius.borderRadiusPill,
-                    ),
-                    child: Text(
-                      '$draftInspections draft inspection${draftInspections > 1 ? 's' : ''}',
-                      style: AppTypography.labelSmall.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Dashboard',
+                      style: AppTypography.labelMedium.copyWith(
+                        color: Colors.white70,
                       ),
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$propertyCount ${propertyCount == 1 ? 'Property' : 'Properties'}',
+                      style: AppTypography.h2.copyWith(
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: AppRadius.borderRadiusMd,
+                ),
+                child: const Icon(
+                  Icons.shield_outlined,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+            ],
+          ),
+          if (draftInspections > 0 ||
+              completedInspections > 0 ||
+              reportCount > 0) ...[
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                if (completedInspections > 0)
+                  _MiniStatChip(
+                    icon: Icons.check_circle_outline,
+                    label:
+                        '$completedInspections completed',
                   ),
-                ],
+                if (draftInspections > 0)
+                  _MiniStatChip(
+                    icon: Icons.edit_note_rounded,
+                    label:
+                        '$draftInspections draft${draftInspections > 1 ? 's' : ''}',
+                  ),
+                if (reportCount > 0)
+                  _MiniStatChip(
+                    icon: Icons.picture_as_pdf_rounded,
+                    label:
+                        '$reportCount report${reportCount > 1 ? 's' : ''}',
+                  ),
               ],
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: AppRadius.borderRadiusMd,
-            ),
-            child: const Icon(
-              Icons.shield_outlined,
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniStatChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _MiniStatChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: AppRadius.borderRadiusPill,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: Colors.white70),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: AppTypography.labelSmall.copyWith(
               color: Colors.white,
-              size: 28,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -226,6 +285,7 @@ class _PropertyCard extends ConsumerWidget {
     final hasCompletedMoveOut = inspections.any((i) =>
         i.status == InspectionStatus.completed &&
         i.type == InspectionType.moveOut);
+    final hasNoInspections = inspections.isEmpty;
 
     return AppCard(
       onTap: () => context.push('/properties/${property.id}'),
@@ -272,7 +332,7 @@ class _PropertyCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              Icon(
+              const Icon(
                 Icons.chevron_right_rounded,
                 color: AppColors.textTertiary,
                 size: 20,
@@ -284,12 +344,19 @@ class _PropertyCard extends ConsumerWidget {
           if (tenancy != null ||
               hasDraft ||
               hasCompletedMoveIn ||
-              hasCompletedMoveOut) ...[
+              hasCompletedMoveOut ||
+              hasNoInspections) ...[
             const SizedBox(height: 12),
             Wrap(
               spacing: 6,
               runSpacing: 4,
               children: [
+                if (hasNoInspections && tenancy == null)
+                  _StatusChip(
+                    icon: Icons.arrow_forward_rounded,
+                    label: 'Start inspection',
+                    color: AppColors.textTertiary,
+                  ),
                 if (tenancy != null)
                   _StatusChip(
                     icon: Icons.check_circle_outline,

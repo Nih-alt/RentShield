@@ -30,7 +30,20 @@ class PropertyDetailsScreen extends ConsumerWidget {
     if (property == null) {
       return Scaffold(
         appBar: AppBar(),
-        body: const Center(child: Text('Property not found')),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.search_off_rounded,
+                  size: 48, color: AppColors.textTertiary),
+              AppSpacing.vMd,
+              Text('Property not found', style: AppTypography.h3),
+              AppSpacing.vSm,
+              Text('It may have been deleted.',
+                  style: AppTypography.bodySmall),
+            ],
+          ),
+        ),
       );
     }
 
@@ -58,63 +71,7 @@ class PropertyDetailsScreen extends ConsumerWidget {
               if (value == 'edit') {
                 context.push('/properties/$propertyId/edit');
               } else if (value == 'delete') {
-                final inspCount = inspections.length;
-                final hasReports = ref
-                    .read(reportsByPropertyIdProvider(propertyId))
-                    .isNotEmpty;
-                final details = <String>[];
-                if (tenancy != null) details.add('tenancy details');
-                if (inspCount > 0) {
-                  details.add('$inspCount inspection${inspCount > 1 ? 's' : ''}');
-                }
-                if (hasReports) details.add('generated reports');
-                final detailText = details.isEmpty
-                    ? 'This will permanently delete this property.'
-                    : 'This will permanently delete this property, including ${details.join(', ')}.';
-
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Delete Property'),
-                    content: Text(detailText),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        style: TextButton.styleFrom(
-                            foregroundColor: AppColors.error),
-                        child: const Text('Delete'),
-                      ),
-                    ],
-                  ),
-                );
-                if (confirm == true && context.mounted) {
-                  // Delete associated data
-                  final reports =
-                      ref.read(reportsByPropertyIdProvider(propertyId));
-                  for (final report in reports) {
-                    await ref
-                        .read(reportListProvider.notifier)
-                        .delete(report.id);
-                  }
-                  if (tenancy != null) {
-                    await ref
-                        .read(tenancyListProvider.notifier)
-                        .delete(tenancy.id);
-                  }
-                  for (final insp in inspections) {
-                    await ref
-                        .read(inspectionListProvider.notifier)
-                        .delete(insp.id);
-                  }
-                  await ref
-                      .read(propertyListProvider.notifier)
-                      .delete(propertyId);
-                  if (context.mounted) context.pop();
-                }
+                await _handleDelete(context, ref, inspections.length);
               }
             },
             itemBuilder: (context) => [
@@ -175,7 +132,7 @@ class PropertyDetailsScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(property.name, style: AppTypography.h2),
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 4),
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 3),
@@ -259,7 +216,7 @@ class PropertyDetailsScreen extends ConsumerWidget {
                             style: AppTypography.labelLarge),
                         const SizedBox(height: 2),
                         Text(
-                          'Rent, deposit, landlord info',
+                          'Record rent, deposit, and landlord info',
                           style: AppTypography.bodySmall,
                         ),
                       ],
@@ -365,6 +322,134 @@ class PropertyDetailsScreen extends ConsumerWidget {
       ),
     );
   }
+
+  Future<void> _handleDelete(
+      BuildContext context, WidgetRef ref, int inspCount) async {
+    final tenancy = ref.read(tenancyByPropertyIdProvider(propertyId));
+    final reports = ref.read(reportsByPropertyIdProvider(propertyId));
+    final inspections =
+        ref.read(inspectionsByPropertyIdProvider(propertyId));
+
+    final details = <String>[];
+    if (tenancy != null) details.add('tenancy details');
+    if (inspCount > 0) {
+      details.add(
+          '$inspCount inspection${inspCount > 1 ? 's' : ''}');
+    }
+    if (reports.isNotEmpty) {
+      details.add(
+          '${reports.length} report${reports.length > 1 ? 's' : ''}');
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded,
+                color: AppColors.error, size: 22),
+            const SizedBox(width: 8),
+            const Text('Delete Property'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'This will permanently delete this property and all associated data.',
+              style: AppTypography.bodyMedium,
+            ),
+            if (details.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.06),
+                  borderRadius: AppRadius.borderRadiusSm,
+                  border: Border.all(
+                    color: AppColors.error.withValues(alpha: 0.15),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'This will also delete:',
+                      style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    ...details.map((d) => Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Row(
+                            children: [
+                              Icon(Icons.remove_rounded,
+                                  size: 14, color: AppColors.error),
+                              const SizedBox(width: 6),
+                              Text(d, style: AppTypography.bodySmall),
+                            ],
+                          ),
+                        )),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Text(
+              'This action cannot be undone.',
+              style: AppTypography.bodySmall.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+                foregroundColor: AppColors.error),
+            child: const Text('Delete Everything'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && context.mounted) {
+      // Cascade delete: reports -> tenancy -> inspections -> property
+      for (final report in reports) {
+        await ref
+            .read(reportListProvider.notifier)
+            .delete(report.id);
+      }
+      if (tenancy != null) {
+        await ref
+            .read(tenancyListProvider.notifier)
+            .delete(tenancy.id);
+      }
+      for (final insp in inspections) {
+        await ref
+            .read(inspectionListProvider.notifier)
+            .delete(insp.id);
+      }
+      await ref
+          .read(propertyListProvider.notifier)
+          .delete(propertyId);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Property and all data deleted')),
+        );
+        context.pop();
+      }
+    }
+  }
 }
 
 class _InspectionsSection extends ConsumerWidget {
@@ -464,7 +549,8 @@ class _InspectionsSection extends ConsumerWidget {
                   padding: const EdgeInsets.only(bottom: 10),
                   child: _InspectionCard(
                     inspection: inspection,
-                    showCompare: inspection.status == InspectionStatus.completed,
+                    showCompare:
+                        inspection.status == InspectionStatus.completed,
                   ),
                 )),
           ],
@@ -473,7 +559,8 @@ class _InspectionsSection extends ConsumerWidget {
           if (canStartMoveOut && moveOutInspections.isEmpty) ...[
             AppSpacing.vMd,
             AppCard(
-              onTap: () => _startMoveOut(context, ref, completedMoveIns),
+              onTap: () =>
+                  _startMoveOut(context, ref, completedMoveIns),
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
@@ -522,8 +609,8 @@ class _InspectionsSection extends ConsumerWidget {
     }
   }
 
-  Future<void> _startMoveOut(
-      BuildContext context, WidgetRef ref, List<Inspection> completedMoveIns) async {
+  Future<void> _startMoveOut(BuildContext context, WidgetRef ref,
+      List<Inspection> completedMoveIns) async {
     // If only one completed move-in, use it directly
     if (completedMoveIns.length == 1) {
       final inspection = await ref
@@ -540,6 +627,10 @@ class _InspectionsSection extends ConsumerWidget {
     final dateFormat = DateFormat('dd MMM yyyy');
     final selected = await showModalBottomSheet<Inspection>(
       context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -547,10 +638,23 @@ class _InspectionsSection extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Handle bar
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: AppRadius.borderRadiusPill,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               Text('Select Move-in to Compare Against',
                   style: AppTypography.h3),
               const SizedBox(height: 4),
-              Text('Choose which move-in inspection this move-out should link to.',
+              Text(
+                  'Choose which move-in inspection this move-out should link to.',
                   style: AppTypography.bodySmall),
               const SizedBox(height: 16),
               ...completedMoveIns.map((mi) => ListTile(
@@ -560,6 +664,9 @@ class _InspectionsSection extends ConsumerWidget {
                         'Move-in \u2022 ${dateFormat.format(mi.startedAt)}'),
                     subtitle: Text(
                         '${mi.totalRooms} rooms \u2022 ${mi.totalItems} items'),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: AppRadius.borderRadiusMd,
+                    ),
                     onTap: () => Navigator.pop(ctx, mi),
                   )),
             ],
@@ -661,7 +768,7 @@ class _InspectionCard extends StatelessWidget {
                     Text(
                       isDraft
                           ? 'Draft \u2022 $percentage% complete'
-                          : 'Completed ${dateFormat.format(inspection.completedAt!)}',
+                          : 'Completed ${inspection.completedAt != null ? dateFormat.format(inspection.completedAt!) : ''}',
                       style: AppTypography.bodySmall,
                     ),
                   ],

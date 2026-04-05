@@ -20,22 +20,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   static const _pages = [
     _PageData(
       icon: Icons.shield_outlined,
-      title: 'Welcome to Rent Shield',
-      subtitle: 'Protect your security deposit with documented proof of property condition.',
+      title: 'Welcome to\nRent Shield',
+      subtitle:
+          'Protect your security deposit with documented proof of property condition.',
       accent: AppColors.primary,
     ),
     _PageData(
       icon: Icons.camera_alt_outlined,
-      title: 'Document Everything',
+      title: 'Document\nEverything',
       subtitle:
-          'Inspect every room during move-in and move-out. Capture photos, notes, and condition for each item.',
+          'Inspect every room during move-in and move-out. Capture photos, notes, and condition ratings for each item.',
       accent: AppColors.success,
     ),
     _PageData(
       icon: Icons.picture_as_pdf_rounded,
-      title: 'Generate Reports',
+      title: 'Generate\nProfessional Reports',
       subtitle:
-          'Create professional PDF reports comparing move-in vs move-out. Share them as evidence if disputes arise.',
+          'Create PDF reports comparing move-in vs move-out condition. Share them as evidence if disputes arise.',
       accent: AppColors.accent,
     ),
   ];
@@ -73,16 +74,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         child: Column(
           children: [
             // Skip button
-            Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 12, right: 16),
-                child: TextButton(
-                  onPressed: _skip,
-                  child: Text(
-                    isLast ? '' : 'Skip',
-                    style: AppTypography.labelLarge
-                        .copyWith(color: AppColors.textTertiary),
+            SizedBox(
+              height: 48,
+              child: Align(
+                alignment: Alignment.topRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 8, right: 16),
+                  child: AnimatedOpacity(
+                    opacity: isLast ? 0.0 : 1.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: TextButton(
+                      onPressed: isLast ? null : _skip,
+                      child: Text(
+                        'Skip',
+                        style: AppTypography.labelLarge
+                            .copyWith(color: AppColors.textTertiary),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -107,13 +115,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 children: List.generate(
                   _pages.length,
                   (i) => AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
                     margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: i == _currentPage ? 24 : 8,
+                    width: i == _currentPage ? 28 : 8,
                     height: 8,
                     decoration: BoxDecoration(
                       color: i == _currentPage
-                          ? AppColors.primary
+                          ? _pages[_currentPage].accent
                           : AppColors.border,
                       borderRadius: AppRadius.borderRadiusPill,
                     ),
@@ -131,15 +140,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: ElevatedButton(
                   onPressed: _next,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    backgroundColor: _pages[_currentPage].accent,
+                    foregroundColor: isLast
+                        ? AppColors.textOnAccent
+                        : Colors.white,
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: AppRadius.borderRadiusMd,
                     ),
                   ),
                   child: Text(
                     isLast ? 'Get Started' : 'Next',
-                    style: AppTypography.button.copyWith(color: Colors.white),
+                    style: AppTypography.button.copyWith(
+                      color: isLast ? AppColors.textOnAccent : Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -177,26 +191,45 @@ class _OnboardingPage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // Icon with double ring decoration
           Container(
-            width: 120,
-            height: 120,
+            width: 130,
+            height: 130,
             decoration: BoxDecoration(
-              color: data.accent.withValues(alpha: 0.08),
+              color: data.accent.withValues(alpha: 0.04),
               shape: BoxShape.circle,
+              border: Border.all(
+                color: data.accent.withValues(alpha: 0.08),
+                width: 2,
+              ),
             ),
-            child: Icon(
-              data.icon,
-              size: 52,
-              color: data.accent,
+            child: Center(
+              child: Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  color: data.accent.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  data.icon,
+                  size: 44,
+                  color: data.accent,
+                ),
+              ),
             ),
           ),
           AppSpacing.vXxl,
+          AppSpacing.vMd,
           Text(
             data.title,
-            style: AppTypography.h1,
+            style: AppTypography.h1.copyWith(
+              fontSize: 26,
+              height: 1.25,
+            ),
             textAlign: TextAlign.center,
           ),
-          AppSpacing.vMd,
+          AppSpacing.vLg,
           Text(
             data.subtitle,
             style: AppTypography.bodyLarge.copyWith(

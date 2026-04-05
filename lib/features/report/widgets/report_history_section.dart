@@ -39,16 +39,23 @@ class ReportHistorySection extends ConsumerWidget {
   }
 }
 
-class _ReportTile extends ConsumerWidget {
+class _ReportTile extends ConsumerStatefulWidget {
   final ReportRecord report;
 
   const _ReportTile({required this.report});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ReportTile> createState() => _ReportTileState();
+}
+
+class _ReportTileState extends ConsumerState<_ReportTile> {
+  bool _isSharing = false;
+
+  @override
+  Widget build(BuildContext context) {
     final dateFormat = DateFormat('dd MMM yyyy, h:mm a');
-    final fileSize = _formatFileSize(report.fileSizeBytes);
-    final fileExists = File(report.filePath).existsSync();
+    final fileSize = _formatFileSize(widget.report.fileSizeBytes);
+    final fileExists = File(widget.report.filePath).existsSync();
 
     return AppCard(
       padding: const EdgeInsets.all(14),
@@ -58,12 +65,12 @@ class _ReportTile extends ConsumerWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: _typeColor(report.reportType).withValues(alpha: 0.1),
+              color: _typeColor(widget.report.reportType).withValues(alpha: 0.1),
               borderRadius: AppRadius.borderRadiusMd,
             ),
             child: Icon(
               Icons.picture_as_pdf_rounded,
-              color: _typeColor(report.reportType),
+              color: _typeColor(widget.report.reportType),
               size: 20,
             ),
           ),
@@ -73,12 +80,12 @@ class _ReportTile extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  report.reportType.label,
+                  widget.report.reportType.label,
                   style: AppTypography.labelLarge,
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${dateFormat.format(report.createdAt)} \u2022 $fileSize',
+                  '${dateFormat.format(widget.report.createdAt)} \u2022 $fileSize',
                   style: AppTypography.bodySmall,
                 ),
                 if (!fileExists) ...[
@@ -93,14 +100,23 @@ class _ReportTile extends ConsumerWidget {
             ),
           ),
           if (fileExists)
-            IconButton(
-              onPressed: () => _share(context),
-              icon: const Icon(Icons.share_rounded, size: 18),
-              color: AppColors.primary,
-              tooltip: 'Share',
-              constraints: const BoxConstraints(
-                  minWidth: 36, minHeight: 36),
-            ),
+            _isSharing
+                ? const Padding(
+                    padding: EdgeInsets.all(9),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : IconButton(
+                    onPressed: () => _share(context),
+                    icon: const Icon(Icons.share_rounded, size: 18),
+                    color: AppColors.primary,
+                    tooltip: 'Share',
+                    constraints: const BoxConstraints(
+                        minWidth: 36, minHeight: 36),
+                  ),
           IconButton(
             onPressed: () => _delete(context, ref),
             icon: const Icon(Icons.delete_outline, size: 18),
@@ -115,30 +131,81 @@ class _ReportTile extends ConsumerWidget {
   }
 
   Future<void> _share(BuildContext context) async {
+    final file = File(widget.report.filePath);
+    if (!await file.exists()) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Report file not found on device.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isSharing = true);
     try {
-      final file = XFile(report.filePath);
+      final xFile = XFile(widget.report.filePath);
       await Share.shareXFiles(
-        [file],
-        subject: report.reportType.label,
+        [xFile],
+        subject: widget.report.reportType.label,
       );
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not share: $e'),
+            content: Text('Could not share: ${e.toString().replaceAll('Exception: ', '')}'),
             backgroundColor: AppColors.error,
           ),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isSharing = false);
     }
   }
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
+    final fileExists = File(widget.report.filePath).existsSync();
+    final fileSize = _formatFileSize(widget.report.fileSizeBytes);
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Report'),
-        content: const Text('This will delete this generated report.'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'This will permanently remove this report record.',
+              style: AppTypography.bodyMedium,
+            ),
+            if (fileExists) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant,
+                  borderRadius: AppRadius.borderRadiusSm,
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.picture_as_pdf_rounded,
+                        color: AppColors.error, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'The PDF file ($fileSize) will also be deleted from your device.',
+                        style: AppTypography.bodySmall,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -155,7 +222,12 @@ class _ReportTile extends ConsumerWidget {
     );
 
     if (confirm == true) {
-      await ref.read(reportListProvider.notifier).delete(report.id);
+      await ref.read(reportListProvider.notifier).delete(widget.report.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Report deleted')),
+        );
+      }
     }
   }
 

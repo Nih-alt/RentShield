@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
@@ -30,7 +31,6 @@ class _ReportGenerationScreenState
   @override
   void initState() {
     super.initState();
-    // Start generation immediately
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startGeneration();
     });
@@ -87,7 +87,6 @@ class _GeneratingState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Animated icon container
           Container(
             width: 88,
             height: 88,
@@ -132,7 +131,7 @@ class _GeneratingState extends StatelessWidget {
   }
 }
 
-class _SuccessState extends StatelessWidget {
+class _SuccessState extends StatefulWidget {
   final ReportRecord report;
   final String filePath;
   final VoidCallback onRegenerate;
@@ -144,35 +143,83 @@ class _SuccessState extends StatelessWidget {
   });
 
   @override
+  State<_SuccessState> createState() => _SuccessStateState();
+}
+
+class _SuccessStateState extends State<_SuccessState>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
+  bool _isSharing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _scaleAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.elasticOut,
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeIn,
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('dd MMM yyyy, h:mm a');
-    final fileSize = _formatFileSize(report.fileSizeBytes);
+    final fileSize = _formatFileSize(widget.report.fileSizeBytes);
 
     return Column(
       children: [
         const Spacer(),
 
-        // Success icon
-        Container(
-          width: 88,
-          height: 88,
-          decoration: BoxDecoration(
-            color: AppColors.success.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.check_circle_rounded,
-            color: AppColors.success,
-            size: 48,
+        // Success icon with animation
+        ScaleTransition(
+          scale: _scaleAnimation,
+          child: Container(
+            width: 88,
+            height: 88,
+            decoration: BoxDecoration(
+              color: AppColors.success.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.check_circle_rounded,
+              color: AppColors.success,
+              size: 48,
+            ),
           ),
         ),
         AppSpacing.vXxl,
-        Text('Report Ready', style: AppTypography.h2),
-        AppSpacing.vSm,
-        Text(
-          'Your ${report.reportType.shortLabel.toLowerCase()} report has been generated successfully.',
-          style: AppTypography.bodySmall,
-          textAlign: TextAlign.center,
+        FadeTransition(
+          opacity: _fadeAnimation,
+          child: Column(
+            children: [
+              Text('Report Ready', style: AppTypography.h2),
+              AppSpacing.vSm,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'Your ${widget.report.reportType.shortLabel.toLowerCase()} report has been generated successfully.',
+                  style: AppTypography.bodySmall,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
         ),
         AppSpacing.vXxl,
 
@@ -197,14 +244,14 @@ class _SuccessState extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      report.fileName,
+                      widget.report.fileName,
                       style: AppTypography.labelLarge,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '$fileSize \u2022 ${dateFormat.format(report.createdAt)}',
+                      '$fileSize \u2022 ${dateFormat.format(widget.report.createdAt)}',
                       style: AppTypography.bodySmall,
                     ),
                   ],
@@ -216,34 +263,43 @@ class _SuccessState extends StatelessWidget {
 
         const Spacer(),
 
-        // Action buttons — stacked for balanced, responsive layout
+        // Action buttons - primary: Share, secondary: Regenerate
         SizedBox(
           width: double.infinity,
+          height: 52,
           child: ElevatedButton.icon(
-            onPressed: () => _shareReport(context),
-            icon: const Icon(Icons.share_rounded, size: 18),
-            label: const Text('Share Report'),
+            onPressed: _isSharing ? null : () => _shareReport(context),
+            icon: _isSharing
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.share_rounded, size: 18),
+            label: Text(_isSharing ? 'Preparing...' : 'Share Report'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 52),
               shape: RoundedRectangleBorder(
                 borderRadius: AppRadius.borderRadiusMd,
               ),
             ),
           ),
         ),
-        AppSpacing.vSm,
+        const SizedBox(height: 10),
         SizedBox(
           width: double.infinity,
+          height: 48,
           child: OutlinedButton.icon(
-            onPressed: onRegenerate,
+            onPressed: widget.onRegenerate,
             icon: const Icon(Icons.refresh_rounded, size: 18),
             label: const Text('Regenerate Report'),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.textSecondary,
               side: const BorderSide(color: AppColors.border),
-              minimumSize: const Size(double.infinity, 48),
               shape: RoundedRectangleBorder(
                 borderRadius: AppRadius.borderRadiusMd,
               ),
@@ -256,21 +312,38 @@ class _SuccessState extends StatelessWidget {
   }
 
   Future<void> _shareReport(BuildContext context) async {
+    // Check file exists before sharing
+    final file = File(widget.filePath);
+    if (!await file.exists()) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Report file not found. Try regenerating the report.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isSharing = true);
     try {
-      final file = XFile(filePath);
+      final xFile = XFile(widget.filePath);
       await Share.shareXFiles(
-        [file],
-        subject: report.reportType.label,
+        [xFile],
+        subject: widget.report.reportType.label,
       );
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not share report: $e'),
+            content: Text('Could not share report: ${e.toString().replaceAll('Exception: ', '')}'),
             backgroundColor: AppColors.error,
           ),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isSharing = false);
     }
   }
 
@@ -312,7 +385,7 @@ class _ErrorState extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Text(
-              message,
+              message.replaceAll('Exception: ', ''),
               style: AppTypography.bodySmall,
               textAlign: TextAlign.center,
               maxLines: 4,
@@ -320,16 +393,19 @@ class _ErrorState extends StatelessWidget {
             ),
           ),
           AppSpacing.vXxl,
-          ElevatedButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: const Text('Try Again'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              minimumSize: const Size(200, 52),
-              shape: RoundedRectangleBorder(
-                borderRadius: AppRadius.borderRadiusMd,
+          SizedBox(
+            width: 200,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Try Again'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: AppRadius.borderRadiusMd,
+                ),
               ),
             ),
           ),

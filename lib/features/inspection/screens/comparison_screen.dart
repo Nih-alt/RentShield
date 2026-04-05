@@ -24,7 +24,23 @@ class ComparisonScreen extends ConsumerWidget {
     if (comparison == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Comparison')),
-        body: const Center(child: Text('Comparison data not available')),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.compare_arrows_rounded,
+                  size: 48, color: AppColors.textTertiary),
+              AppSpacing.vMd,
+              Text('Comparison not available', style: AppTypography.h3),
+              AppSpacing.vSm,
+              Text(
+                'The linked move-in inspection may have been deleted.',
+                style: AppTypography.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       );
     }
 

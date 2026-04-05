@@ -5,12 +5,23 @@ import 'package:share_plus/share_plus.dart';
 import '../database/hive_service.dart';
 
 class BackupService {
-  /// Exports all app data as a structured JSON file and shares it.
+  /// Exports all app data as a structured JSON file.
+  ///
+  /// Includes: properties, tenancies, inspections, report metadata.
+  /// Does NOT include: actual PDF files or photos (they are local file paths).
   static Future<String> exportBackup() async {
+    final now = DateTime.now();
+    final stats = getStorageStats();
+
     final backup = <String, dynamic>{
       'appName': 'Rent Shield',
       'version': '1.0.0',
-      'exportedAt': DateTime.now().toIso8601String(),
+      'exportedAt': now.toIso8601String(),
+      'dataStats': stats,
+      'note':
+          'This backup contains property, tenancy, inspection, and report metadata. '
+          'Photos and PDF report files are not included in this backup. '
+          'To preserve photos, back up your device storage separately.',
       'properties': _boxToList(HiveService.properties),
       'tenancies': _boxToList(HiveService.tenancies),
       'inspections': _boxToList(HiveService.inspections),
@@ -20,7 +31,7 @@ class BackupService {
     final json = const JsonEncoder.withIndent('  ').convert(backup);
 
     final dir = await getApplicationDocumentsDirectory();
-    final timestamp = DateTime.now()
+    final timestamp = now
         .toIso8601String()
         .replaceAll(':', '-')
         .split('.')
@@ -34,6 +45,10 @@ class BackupService {
 
   /// Shares the backup file via platform share sheet.
   static Future<void> shareBackup(String filePath) async {
+    final file = File(filePath);
+    if (!await file.exists()) {
+      throw Exception('Backup file not found');
+    }
     final xFile = XFile(filePath);
     await Share.shareXFiles(
       [xFile],
@@ -60,5 +75,23 @@ class BackupService {
       'inspections': HiveService.inspections.length,
       'reports': HiveService.reports.length,
     };
+  }
+
+  /// Cleans up orphaned report records whose PDF files no longer exist on disk.
+  /// Returns the number of orphaned records found (does not delete them).
+  static Future<int> countOrphanedReports() async {
+    int orphaned = 0;
+    final box = HiveService.reports;
+    for (final key in box.keys) {
+      final value = box.get(key);
+      if (value is Map) {
+        final filePath = value['filePath'] as String?;
+        if (filePath != null) {
+          final exists = await File(filePath).exists();
+          if (!exists) orphaned++;
+        }
+      }
+    }
+    return orphaned;
   }
 }

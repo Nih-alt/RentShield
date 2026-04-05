@@ -23,7 +23,20 @@ class InspectionOverviewScreen extends ConsumerWidget {
     if (inspection == null) {
       return Scaffold(
         appBar: AppBar(),
-        body: const Center(child: Text('Inspection not found')),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.search_off_rounded,
+                  size: 48, color: AppColors.textTertiary),
+              AppSpacing.vMd,
+              Text('Inspection not found', style: AppTypography.h3),
+              AppSpacing.vSm,
+              Text('It may have been deleted.',
+                  style: AppTypography.bodySmall),
+            ],
+          ),
+        ),
       );
     }
 
@@ -42,9 +55,31 @@ class InspectionOverviewScreen extends ConsumerWidget {
                   final confirm = await showDialog<bool>(
                     context: context,
                     builder: (ctx) => AlertDialog(
-                      title: const Text('Delete Inspection'),
-                      content: const Text(
-                          'This will permanently delete this inspection and all its data.'),
+                      title: Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded,
+                              color: AppColors.error, size: 22),
+                          const SizedBox(width: 8),
+                          const Text('Delete Inspection'),
+                        ],
+                      ),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'This will permanently delete this inspection and all its data, including photos and notes.',
+                            style: AppTypography.bodyMedium,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'This action cannot be undone.',
+                            style: AppTypography.bodySmall.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, false),
@@ -63,7 +98,13 @@ class InspectionOverviewScreen extends ConsumerWidget {
                     await ref
                         .read(inspectionListProvider.notifier)
                         .delete(inspectionId);
-                    if (context.mounted) context.pop();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Inspection deleted')),
+                      );
+                      context.pop();
+                    }
                   }
                 }
               },
@@ -151,37 +192,41 @@ class InspectionOverviewScreen extends ConsumerWidget {
 
           // Complete button (only for drafts with all rooms done)
           if (!isCompleted) ...[
-            ElevatedButton(
-              onPressed: inspection.allRoomsComplete
-                  ? () => context.push('/inspections/$inspectionId/summary')
-                  : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.success,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: AppColors.surfaceVariant,
-                disabledForegroundColor: AppColors.textTertiary,
-                minimumSize: const Size(double.infinity, 52),
-                shape: RoundedRectangleBorder(
-                  borderRadius: AppRadius.borderRadiusMd,
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: inspection.allRoomsComplete
+                    ? () =>
+                        context.push('/inspections/$inspectionId/summary')
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.success,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: AppColors.surfaceVariant,
+                  disabledForegroundColor: AppColors.textTertiary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: AppRadius.borderRadiusMd,
+                  ),
                 ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    inspection.allRoomsComplete
-                        ? Icons.check_circle_outline
-                        : Icons.lock_outlined,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    inspection.allRoomsComplete
-                        ? 'Review & Complete'
-                        : 'Complete all rooms to finish',
-                    style: AppTypography.button,
-                  ),
-                ],
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      inspection.allRoomsComplete
+                          ? Icons.check_circle_outline
+                          : Icons.lock_outlined,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      inspection.allRoomsComplete
+                          ? 'Review & Complete'
+                          : 'Complete all rooms to finish',
+                      style: AppTypography.button,
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -191,18 +236,21 @@ class InspectionOverviewScreen extends ConsumerWidget {
               inspection.type == InspectionType.moveOut &&
               inspection.linkedMoveInInspectionId != null) ...[
             const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () =>
-                  context.push('/inspections/$inspectionId/compare'),
-              icon: const Icon(Icons.compare_arrows_rounded, size: 18),
-              label: const Text('View Before & After Comparison'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.info,
-                side:
-                    BorderSide(color: AppColors.info.withValues(alpha: 0.3)),
-                minimumSize: const Size(double.infinity, 48),
-                shape: RoundedRectangleBorder(
-                  borderRadius: AppRadius.borderRadiusMd,
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: () =>
+                    context.push('/inspections/$inspectionId/compare'),
+                icon: const Icon(Icons.compare_arrows_rounded, size: 18),
+                label: const Text('View Before & After Comparison'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.info,
+                  side: BorderSide(
+                      color: AppColors.info.withValues(alpha: 0.3)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: AppRadius.borderRadiusMd,
+                  ),
                 ),
               ),
             ),
@@ -211,24 +259,28 @@ class InspectionOverviewScreen extends ConsumerWidget {
           // Generate report button for completed inspections
           if (isCompleted) ...[
             const SizedBox(height: 12),
-            ElevatedButton.icon(
-              onPressed: () {
-                final reportType =
-                    inspection.type == InspectionType.moveIn
-                        ? 'moveIn'
-                        : 'moveOut';
-                context.push(
-                    '/inspections/$inspectionId/report/$reportType');
-              },
-              icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
-              label: Text(
-                  'Generate ${inspection.type.label} Report'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                foregroundColor: AppColors.textOnAccent,
-                minimumSize: const Size(double.infinity, 48),
-                shape: RoundedRectangleBorder(
-                  borderRadius: AppRadius.borderRadiusMd,
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  final reportType =
+                      inspection.type == InspectionType.moveIn
+                          ? 'moveIn'
+                          : 'moveOut';
+                  context.push(
+                      '/inspections/$inspectionId/report/$reportType');
+                },
+                icon:
+                    const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                label: Text(
+                    'Generate ${inspection.type.label} Report'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: AppColors.textOnAccent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: AppRadius.borderRadiusMd,
+                  ),
                 ),
               ),
             ),
@@ -328,7 +380,8 @@ class _ProgressCard extends StatelessWidget {
             children: [
               _StatItem(
                 icon: Icons.meeting_room_outlined,
-                value: '${inspection.completedRooms}/${inspection.totalRooms}',
+                value:
+                    '${inspection.completedRooms}/${inspection.totalRooms}',
                 label: 'Rooms',
               ),
               const SizedBox(width: 20),

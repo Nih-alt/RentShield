@@ -96,6 +96,28 @@ class _RoomInspectionScreenState extends ConsumerState<RoomInspectionScreen> {
     _save();
   }
 
+  void _bulkSetCondition(ItemCondition condition) {
+    setState(() {
+      for (var i = 0; i < _items.length; i++) {
+        _items[i] = _items[i].copyWith(condition: condition);
+      }
+    });
+    _save();
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(conditionIcon(condition), color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Text('All items marked as ${condition.label}'),
+          ],
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   void _updateItemPhotos(int index, List<String> photos) {
     setState(() {
       _items[index] = _items[index].copyWith(photos: photos);
@@ -200,6 +222,43 @@ class _RoomInspectionScreenState extends ConsumerState<RoomInspectionScreen> {
               ),
             ),
             AppSpacing.vXxl,
+
+            // Quick Actions for bulk selection
+            if (!isCompleted) ...[
+              Text('Quick Actions', style: AppTypography.labelLarge),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _BulkActionChip(
+                    label: 'All OK',
+                    icon: Icons.check_circle_rounded,
+                    color: AppColors.success,
+                    onTap: () => _bulkSetCondition(ItemCondition.ok),
+                  ),
+                  _BulkActionChip(
+                    label: 'All Minor',
+                    icon: Icons.warning_amber_rounded,
+                    color: AppColors.warning,
+                    onTap: () => _bulkSetCondition(ItemCondition.minorDamage),
+                  ),
+                  _BulkActionChip(
+                    label: 'All Major',
+                    icon: Icons.error_rounded,
+                    color: AppColors.error,
+                    onTap: () => _bulkSetCondition(ItemCondition.majorDamage),
+                  ),
+                  _BulkActionChip(
+                    label: 'All Missing',
+                    icon: Icons.remove_circle_rounded,
+                    color: const Color(0xFF7C3AED),
+                    onTap: () => _bulkSetCondition(ItemCondition.missing),
+                  ),
+                ],
+              ),
+              AppSpacing.vXxl,
+            ],
 
             // Checklist items grouped by category
             ..._buildCategoryGroups(isCompleted == true),
@@ -400,6 +459,51 @@ class _ChecklistItemCard extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _BulkActionChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _BulkActionChip({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: AppRadius.borderRadiusSm,
+          border: Border.all(
+            color: color.withValues(alpha: 0.25),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: AppTypography.labelMedium.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

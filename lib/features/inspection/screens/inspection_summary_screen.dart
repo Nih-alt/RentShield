@@ -43,13 +43,26 @@ class _InspectionSummaryScreenState
   }
 
   @override
-  Widget build(BuildContext context, ) {
+  Widget build(BuildContext context) {
     final inspection = ref.watch(inspectionByIdProvider(widget.inspectionId));
 
     if (inspection == null) {
       return Scaffold(
         appBar: AppBar(),
-        body: const Center(child: Text('Inspection not found')),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.search_off_rounded,
+                  size: 48, color: AppColors.textTertiary),
+              AppSpacing.vMd,
+              Text('Inspection not found', style: AppTypography.h3),
+              AppSpacing.vSm,
+              Text('It may have been deleted.',
+                  style: AppTypography.bodySmall),
+            ],
+          ),
+        ),
       );
     }
 
@@ -216,7 +229,7 @@ class _InspectionSummaryScreenState
           ),
           AppSpacing.vMd,
           Text(
-            'Once completed, this inspection will be saved as your official move-in record.',
+            'Once completed, this inspection will be saved as your official ${inspection.type.label.toLowerCase()} record.',
             style: AppTypography.caption,
             textAlign: TextAlign.center,
           ),

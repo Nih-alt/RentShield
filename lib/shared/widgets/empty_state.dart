@@ -28,17 +28,32 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Double ring icon container
             Container(
-              width: 80,
-              height: 80,
+              width: 96,
+              height: 96,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
+                color: AppColors.primary.withValues(alpha: 0.03),
                 shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.06),
+                  width: 2,
+                ),
               ),
-              child: Icon(
-                icon,
-                size: 36,
-                color: AppColors.primary.withValues(alpha: 0.6),
+              child: Center(
+                child: Container(
+                  width: 68,
+                  height: 68,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 32,
+                    color: AppColors.primary.withValues(alpha: 0.6),
+                  ),
+                ),
               ),
             ),
             AppSpacing.vXxl,
@@ -53,6 +68,7 @@ class EmptyState extends StatelessWidget {
                 subtitle!,
                 style: AppTypography.bodyMedium.copyWith(
                   color: AppColors.textSecondary,
+                  height: 1.5,
                 ),
                 textAlign: TextAlign.center,
               ),
