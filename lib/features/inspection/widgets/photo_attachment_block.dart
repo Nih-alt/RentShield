@@ -9,12 +9,14 @@ class PhotoAttachmentBlock extends StatelessWidget {
   final List<String> photos;
   final ValueChanged<List<String>> onChanged;
   final String label;
+  final bool readOnly;
 
   const PhotoAttachmentBlock({
     super.key,
     required this.photos,
     required this.onChanged,
     this.label = 'Photos',
+    this.readOnly = false,
   });
 
   Future<void> _pickPhoto(BuildContext context) async {
@@ -145,95 +147,100 @@ class PhotoAttachmentBlock extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        SizedBox(
-          height: 80,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              // Add button
-              GestureDetector(
-                onTap: () => _pickPhoto(context),
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: AppRadius.borderRadiusMd,
-                    border: Border.all(
-                      color: AppColors.border,
-                      width: 1,
-                      strokeAlign: BorderSide.strokeAlignInside,
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.add_a_photo_outlined,
-                          size: 22, color: AppColors.textSecondary),
-                      const SizedBox(height: 4),
-                      Text('Add',
-                          style: AppTypography.labelSmall
-                              .copyWith(fontSize: 10)),
-                    ],
-                  ),
-                ),
-              ),
-              // Photo thumbnails
-              ...photos.asMap().entries.map((entry) {
-                final index = entry.key;
-                final path = entry.value;
-                return Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: GestureDetector(
-                    onTap: () => _viewPhoto(context, index),
-                    child: ClipRRect(
-                      borderRadius: AppRadius.borderRadiusMd,
-                      child: SizedBox(
-                        width: 80,
-                        height: 80,
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            Image.file(
-                              File(path),
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => Container(
-                                color: AppColors.surfaceVariant,
-                                child: const Icon(Icons.broken_image_outlined,
-                                    size: 24, color: AppColors.textTertiary),
-                              ),
-                            ),
-                            // Remove button
-                            Positioned(
-                              top: 4,
-                              right: 4,
-                              child: GestureDetector(
-                                onTap: () => _removePhoto(index),
-                                child: Container(
-                                  width: 20,
-                                  height: 20,
-                                  decoration: BoxDecoration(
-                                    color: Colors.black54,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.close,
-                                    size: 12,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+        if (photos.isEmpty && readOnly)
+          const SizedBox.shrink()
+        else
+          SizedBox(
+            height: 80,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                // Add button (hidden in read-only mode)
+                if (!readOnly)
+                  GestureDetector(
+                    onTap: () => _pickPhoto(context),
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceVariant,
+                        borderRadius: AppRadius.borderRadiusMd,
+                        border: Border.all(
+                          color: AppColors.border,
+                          width: 1,
+                          strokeAlign: BorderSide.strokeAlignInside,
                         ),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_a_photo_outlined,
+                              size: 22, color: AppColors.textSecondary),
+                          const SizedBox(height: 4),
+                          Text('Add',
+                              style: AppTypography.labelSmall
+                                  .copyWith(fontSize: 10)),
+                        ],
                       ),
                     ),
                   ),
-                );
-              }),
-            ],
+                // Photo thumbnails
+                ...photos.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final path = entry.value;
+                  return Padding(
+                    padding: EdgeInsets.only(left: readOnly && index == 0 ? 0 : 8),
+                    child: GestureDetector(
+                      onTap: () => _viewPhoto(context, index),
+                      child: ClipRRect(
+                        borderRadius: AppRadius.borderRadiusMd,
+                        child: SizedBox(
+                          width: 80,
+                          height: 80,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.file(
+                                File(path),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => Container(
+                                  color: AppColors.surfaceVariant,
+                                  child: const Icon(Icons.broken_image_outlined,
+                                      size: 24, color: AppColors.textTertiary),
+                                ),
+                              ),
+                              // Remove button (hidden in read-only mode)
+                              if (!readOnly)
+                                Positioned(
+                                  top: 4,
+                                  right: 4,
+                                  child: GestureDetector(
+                                    onTap: () => _removePhoto(index),
+                                    child: Container(
+                                      width: 20,
+                                      height: 20,
+                                      decoration: BoxDecoration(
+                                        color: Colors.black54,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.close,
+                                        size: 12,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
           ),
-        ),
       ],
     );
   }

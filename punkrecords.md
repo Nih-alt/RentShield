@@ -564,7 +564,7 @@ ReportData (computed, not persisted - intermediate for PDF)
 7. **Multi-language** — app copy is English-only; structure supports i18n
 
 ## Launch-Readiness Notes
-- App compiles cleanly (`dart analyze`: 0 issues, verified Phase 6)
+- App compiles cleanly (`dart analyze`: 0 issues, verified Pre-Launch QA)
 - All navigation routes functional
 - Onboarding → Home → Property → Tenancy → Inspection → Report flow complete
 - Share flow operational (requires physical device or emulator with share sheet support)
@@ -575,6 +575,8 @@ ReportData (computed, not persisted - intermediate for PDF)
 - All 15 app flows audited end-to-end (Phase 6 QA pass)
 - Inspection UX optimized: default-to-OK + bulk actions
 - All not-found/error states use consistent polished pattern
+- Startup freeze bug fixed — Hive init has error recovery, Google Fonts runtime fetch disabled
+- Read-only inspection enforced in photo UI
 - Beta-ready for internal testing
 
 ## Bug Fixes
@@ -590,6 +592,25 @@ ReportData (computed, not persisted - intermediate for PDF)
 
 ### Report Action Row (Fixed — Phase 4/5)
 **Fix:** Stacked vertical layout with explicit height constraints. Share Report primary (52px) + Regenerate secondary (48px). No wrapping or cramping.
+
+### Startup Freeze / Splash Hang (Fixed — Pre-Launch QA)
+**Root Cause:** `HiveService.init()` and `main()` had zero error handling. If any Hive box failed to open (corrupted data, disk full, permission issue), the `await` chain threw an unhandled exception and `runApp()` never executed. App stayed on native splash forever. Additionally, `GoogleFonts.inter()` triggered runtime font downloads on first launch, adding network-dependent delay.
+
+**Fix (4 files changed):**
+1. `lib/main.dart` — Wrapped `HiveService.init()` in try-catch with fallback to `deleteAndReinit()`. Added `GoogleFonts.config.allowRuntimeFetching = false` to prevent network-dependent startup.
+2. `lib/core/database/hive_service.dart` — Added `_openBoxSafe()` that catches per-box errors and deletes/recreates corrupted boxes. Added `deleteAndReinit()` for emergency recovery. Added try-catch guard on `hasCompletedOnboarding` getter.
+
+### Tenancy Form TextEditingController Memory Leak (Fixed — Pre-Launch QA)
+**Root Cause:** `TenancyFormScreen.build()` created new `TextEditingController` instances inline for date fields on every rebuild. These were never disposed, leaking memory on each widget rebuild.
+
+**Fix:** `lib/features/tenancy/screens/tenancy_form_screen.dart` — Replaced inline controllers with persistent `_startDateController` and `_endDateController` fields, properly initialized in `initState`, updated in `_pickDate`, and disposed in `dispose()`.
+
+### PhotoAttachmentBlock Add Button Visible in Read-Only Mode (Fixed — Pre-Launch QA)
+**Root Cause:** When viewing a completed inspection, `PhotoAttachmentBlock` still showed the "Add" button and photo remove buttons. User could open camera/gallery, take a photo, but it was silently discarded — confusing UX.
+
+**Fix:**
+1. `lib/features/inspection/widgets/photo_attachment_block.dart` — Added `readOnly` flag. When true, hides add button and remove buttons; shows only photo thumbnails for viewing.
+2. `lib/features/inspection/screens/room_inspection_screen.dart` — Passes `readOnly: isCompleted == true` to both room-level and item-level `PhotoAttachmentBlock` instances.
 
 ---
 

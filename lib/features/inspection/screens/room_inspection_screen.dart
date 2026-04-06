@@ -197,12 +197,11 @@ class _RoomInspectionScreenState extends ConsumerState<RoomInspectionScreen> {
             PhotoAttachmentBlock(
               label: 'Room Photos',
               photos: _roomPhotos,
-              onChanged: isCompleted == true
-                  ? (_) {}
-                  : (photos) {
-                      setState(() => _roomPhotos = photos);
-                      _save();
-                    },
+              readOnly: isCompleted == true,
+              onChanged: (photos) {
+                setState(() => _roomPhotos = photos);
+                _save();
+              },
             ),
             AppSpacing.vLg,
 
@@ -437,7 +436,8 @@ class _ChecklistItemCard extends StatelessWidget {
             PhotoAttachmentBlock(
               label: 'Item Photos',
               photos: item.photos,
-              onChanged: readOnly ? (_) {} : onPhotosChanged,
+              readOnly: readOnly,
+              onChanged: onPhotosChanged,
             ),
             const SizedBox(height: 12),
 

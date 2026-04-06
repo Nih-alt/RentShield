@@ -29,6 +29,8 @@ class _TenancyFormScreenState extends ConsumerState<TenancyFormScreen> {
   final _brokerNameController = TextEditingController();
   final _brokerPhoneController = TextEditingController();
   final _notesController = TextEditingController();
+  final _startDateController = TextEditingController();
+  final _endDateController = TextEditingController();
 
   DateTime _startDate = DateTime.now();
   DateTime? _endDate;
@@ -38,6 +40,7 @@ class _TenancyFormScreenState extends ConsumerState<TenancyFormScreen> {
   @override
   void initState() {
     super.initState();
+    _startDateController.text = _dateFormat.format(_startDate);
     // Pre-fill if editing existing tenancy
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _existing =
@@ -53,6 +56,9 @@ class _TenancyFormScreenState extends ConsumerState<TenancyFormScreen> {
         _notesController.text = _existing!.notes ?? '';
         _startDate = _existing!.tenancyStartDate;
         _endDate = _existing!.tenancyEndDate;
+        _startDateController.text = _dateFormat.format(_startDate);
+        _endDateController.text =
+            _endDate != null ? _dateFormat.format(_endDate!) : '';
         setState(() {});
       }
     });
@@ -67,6 +73,8 @@ class _TenancyFormScreenState extends ConsumerState<TenancyFormScreen> {
     _brokerNameController.dispose();
     _brokerPhoneController.dispose();
     _notesController.dispose();
+    _startDateController.dispose();
+    _endDateController.dispose();
     super.dispose();
   }
 
@@ -92,8 +100,10 @@ class _TenancyFormScreenState extends ConsumerState<TenancyFormScreen> {
       setState(() {
         if (isStart) {
           _startDate = picked;
+          _startDateController.text = _dateFormat.format(picked);
         } else {
           _endDate = picked;
+          _endDateController.text = _dateFormat.format(picked);
         }
       });
     }
@@ -209,8 +219,7 @@ class _TenancyFormScreenState extends ConsumerState<TenancyFormScreen> {
                   child: AppTextField(
                     label: 'Start Date',
                     hint: 'Select date',
-                    controller: TextEditingController(
-                        text: _dateFormat.format(_startDate)),
+                    controller: _startDateController,
                     readOnly: true,
                     onTap: () => _pickDate(isStart: true),
                     suffix:
@@ -222,9 +231,7 @@ class _TenancyFormScreenState extends ConsumerState<TenancyFormScreen> {
                   child: AppTextField(
                     label: 'End Date',
                     hint: 'Select date',
-                    controller: TextEditingController(
-                        text:
-                            _endDate != null ? _dateFormat.format(_endDate!) : ''),
+                    controller: _endDateController,
                     readOnly: true,
                     onTap: () => _pickDate(isStart: false),
                     suffix:
